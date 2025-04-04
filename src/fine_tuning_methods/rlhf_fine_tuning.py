@@ -1,5 +1,6 @@
 # DEPENDENCIES
 
+import torch
 import datasets
 import datetime
 from tqdm import tqdm
@@ -14,6 +15,8 @@ from trl import PPOTrainer
 from trl import create_reference_model
 from trl import AutoModelForCausalLMWithValueHead
 
+from ..fine_tuning_methods.lora_fine_tuning import LoRAFineTuning
+
 class RLHFTrainer:
     """
     A class for fine-tuning a language model using Reinforcement Learning from Human Feedback (RLHF)
@@ -21,7 +24,12 @@ class RLHFTrainer:
     
     """
 
-    def __init__(self, model : AutoModelForCausalLM, tokenizer : AutoTokenizer, prepared_dataset : datasets.DatasetDict) -> None:
+    def __init__(self, 
+                 model             : AutoModelForCausalLM, 
+                 tokenizer         : AutoTokenizer, 
+                 prepared_dataset  : datasets.DatasetDict,
+                 device            : str ="cuda" if torch.cuda.is_available() else "cpu"
+                 ) -> None:
         """
         Initializes the RLHFTrainer.
 
@@ -34,12 +42,27 @@ class RLHFTrainer:
             `prepared_dataset`          {Dataset}              : The dataset containing prompts for training.
         
         """
-        self.model             = model
+        
+        lora_adapter           = LoRAFineTuning(model)
+        
+        quantized_model        = lora_adapter.apply_lora(rank             = 8,
+                                                         lora_alpha       = 16,
+                                                         lora_dropout     = 0.1,
+                                                         target_modules   = ["query", "key", "value"]
+                                                         )
+
+        self.device            = device
+        self.model             = quantized_model.to(device)
         self.tokenizer         = tokenizer
         self.prepared_dataset  = prepared_dataset
 
+        self.model.train()
+        
+        for param in self.model.parameters():
+            param.requires_grad = True
+
     def apply_rlhf(self, 
-                   output_dir       : str = "../../model/rlhf_fine_tuned_model", 
+                   output_dir       : str = "./rlhf_fine_tuned_model", 
                    reward_model_id  : str = None, 
                    batch_size       : int = 4, 
                    learning_rate    : float = 1e-5, 
@@ -82,6 +105,7 @@ class RLHFTrainer:
         ref_model               = create_reference_model(model)
 
         if reward_model_id:
+            
             reward_model        = AutoModelForCausalLM.from_pretrained(reward_model_id)
             reward_tokenizer    = AutoTokenizer.from_pretrained(reward_model_id)
             
@@ -124,18 +148,17 @@ class RLHFTrainer:
 
                 return [min(len(r.split()), 50) / 50.0 for r in response]
 
-        ppo_config                = PPOConfig(batch_size      = batch_size,
-                                              learning_rate   = learning_rate,
-                                              ppo_epochs      = num_epochs,
-                                              model_name      = model.config._name_or_path 
-                                              if hasattr(model, "config") 
-                                              else model.name_or_path,
+        ppo_config                = PPOConfig(batch_size        = batch_size,
+                                              learning_rate     = learning_rate,
+                                              num_train_epochs  = num_epochs,
                                               )
         
-        ppo_trainer               = PPOTrainer(config      = ppo_config, 
-                                               model       = model, 
-                                               ref_model   = ref_model, 
-                                               tokenizer   = self.tokenizer
+        ppo_trainer               = PPOTrainer(ppo_config, 
+                                               model             = model, 
+                                               ref_model         = ref_model, 
+                                               reward_model      = reward_fn,
+                                               train_dataset     = self.prepared_dataset["train"],
+                                               processing_class  = None,
                                                )
 
         gen_kwargs                = {"max_new_tokens": 100, "temperature": 0.7, "top_p": 0.9}
