@@ -1,0 +1,9 @@
+trl
+peft
+nltk
+tqdm
+torch
+numpy
+evaluate
+datasets
+transformers
