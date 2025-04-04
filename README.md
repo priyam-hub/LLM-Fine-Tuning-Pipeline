@@ -174,9 +174,9 @@ The LLM Fine-Tuning Pipeline follows these key steps:
 Comprehensive documentation is available in the `/docs` directory:
 
 - 📖 [Instruction Fine-Tuning Research Paper](docs/Instruction_Fine_Tuning_for_LLM.pdf)
-- 🔧 [Instruction Fine-Tuning Research Paper](docs/LoRA_Fine_Tuning.pdf)
-- 📝 [Instruction Fine-Tuning Research Paper](docs/RLHF_Fine_Tuning.pdf)
-- 🧪 [Instruction Fine-Tuning Research Paper](docs/Supervised_Fine_Tuning_for_LLM.pdf)
+- 🔧 [LoRA Fine-Tuning Research Paper](docs/LoRA_Fine_Tuning.pdf)
+- 📝 [RLHF Fine-Tuning Research Paper](docs/RLHF_Fine_Tuning.pdf)
+- 🧪 [Supervised Fine-Tuning Research Paper](docs/Supervised_Fine_Tuning_for_LLM.pdf)
 
 ## 🗺️ Future Roadmap
 
