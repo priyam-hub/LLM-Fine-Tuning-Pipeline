@@ -163,11 +163,10 @@ The LLM Fine-Tuning Pipeline follows these key steps:
 
 ## 📊 Performance Benchmarks
 
-| Model | Method | Dataset | MMLU | GSM8K | Training Time | GPU Memory |
-|-------|--------|---------|------|-------|--------------|------------|
-| LLaMA2-7B | QLoRA | Alpaca | 46.2% | 27.8% | 5 hours | 12GB |
-| Mistral-7B | LoRA | Custom | 52.7% | 34.5% | 8 hours | 16GB |
-| Falcon-7B | Full FT | GSM8K | 41.5% | 47.2% | 24 hours | 40GB |
+| Model | Method | Dataset | BLEU Score | Perplexity | Coherence | Training Time | GPU Memory |
+|-------|--------|---------|------------|------------|-----------|---------------|------------|
+| Bert-Base-Uncased | Instruction FT | IMDB | 46.2% | 27.8% | 0.85 | 5 hours | 12GB |
+
 
 ## 📚 Documentation
 
