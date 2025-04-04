@@ -14,6 +14,8 @@ from transformers import TrainingArguments
 from transformers import AutoModelForCausalLM
 from transformers import DataCollatorForLanguageModeling
 
+from ..fine_tuning_methods.lora_fine_tuning import LoRAFineTuning
+
 class SupervisedFineTuning:
     """
     A class to handle supervised fine-tuning (SFT) of a language model using the SFTTrainer from TRL.
@@ -39,7 +41,16 @@ class SupervisedFineTuning:
             `device`             {str, optional}        : The device to run training on ('cuda' or 'cpu'). Defaults to GPU if available.
         
         """
-        self.model              = model.to(device)
+
+        lora_adapter            = LoRAFineTuning(model = model)
+    
+        quantized_model         = lora_adapter.apply_lora(rank            = 8, 
+                                                          lora_alpha      = 16, 
+                                                          lora_dropout    = 0.1,
+                                                          target_modules  = ["query", "key", "value"]
+                                                          )
+        
+        self.model              = quantized_model
         self.device             = device
         self.tokenizer          = tokenizer
         self.prepared_dataset   = dataset
@@ -50,7 +61,7 @@ class SupervisedFineTuning:
             param.requires_grad = True
 
     def apply_supervised_fine_tuning(self, 
-                                     output_dir       : str   = "./sft_model", 
+                                     output_dir       : str   = "./supervised_fine_tuned_model", 
                                      batch_size       : int   = 8, 
                                      learning_rate    : float = 2e-5, 
                                      num_epochs       : int   = 3

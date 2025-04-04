@@ -78,10 +78,10 @@ class LoRAFineTuning:
         if target_modules is None:
             model_type         = self.model.config.model_type if hasattr(self.model, "config") else "unknown"
             
-            if "llama" in model_type.lower():
+            if "llama" in model_type.lower() or "mistral" in model_type.lower() or "gemma" in model_type.lower():
                 target_modules = ["q_proj", "v_proj", "k_proj", "o_proj"]
             
-            elif "gpt" in model_type.lower():
+            elif "gpt" in model_type.lower() or "falcon" in model_type.lower():
                 target_modules = ["c_attn", "c_proj"]
             
             elif "bert" in model_type.lower():
@@ -90,9 +90,12 @@ class LoRAFineTuning:
             elif "t5" in model_type.lower():
                 target_modules = ["q", "v", "k", "o"]
             
+            elif "bloom" in model_type.lower():
+                target_modules = ["query_key_value"]
+            
             else:
                 print(f"Auto-detection of target modules not supported for {model_type}. Using default q,v,k,o projections.")
-                
+            
                 target_modules = ["q_proj", "v_proj", "k_proj", "o_proj"]
         
 
@@ -106,7 +109,7 @@ class LoRAFineTuning:
                                             target_modules  = target_modules,
                                             lora_dropout    = lora_dropout,
                                             bias            = "none",
-                                            task_type       = "SEQ_CLS"
+                                            task_type       = task_type
                                             )
 
         print("Configuring LoRA...")
@@ -123,7 +126,7 @@ class LoRAFineTuning:
             
             if "lora" in name:
             
-                param.requires_grad = True  
+                param.requires_grad = True 
                 
         model.print_trainable_parameters()
 

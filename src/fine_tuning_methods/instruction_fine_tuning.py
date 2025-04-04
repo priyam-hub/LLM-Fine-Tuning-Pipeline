@@ -11,6 +11,8 @@ from transformers import TrainingArguments
 from transformers import AutoModelForCausalLM
 from transformers import DataCollatorForLanguageModeling
 
+from ..fine_tuning_methods.lora_fine_tuning import LoRAFineTuning
+
 
 class InstructionFineTuning:
     """
@@ -32,10 +34,22 @@ class InstructionFineTuning:
             `device`       {str, optional}        : The device to run training on ('cuda' or 'cpu'). Defaults to GPU if available.
         """
         
-        self.model                  = model.to(device)
+
+        lora_adapter      = LoRAFineTuning(model = model)
+    
+        quantized_model   = lora_adapter.apply_lora(rank            = 8, 
+                                                    lora_alpha      = 16, 
+                                                    lora_dropout    = 0.1,
+                                                    target_modules  = ["query", "key", "value"]
+                                                    )
+
+        self.model                  = quantized_model
         self.tokenizer              = tokenizer
         self.prepared_dataset       = dataset
         self.device                 = device
+
+        for param in self.model.parameters():
+            param.requires_grad     = True
 
         if hasattr(self.model, "gradient_checkpointing_enable"):
             self.model.gradient_checkpointing_enable()
@@ -43,41 +57,43 @@ class InstructionFineTuning:
         if torch.cuda.is_available() and torch.__version__ >= "2.0":
             self.model = torch.compile(self.model)
 
+        self.model.train()
+
     def apply_instruction_fine_tuning(self, 
-                                      output_dir     : str   = "./instruction_ft_model", 
+                                      output_dir     : str   = "./instruction_fine_tuned_model", 
                                       batch_size     : int   = 8, 
                                       learning_rate  : float = 5e-5, 
                                       num_epochs     : int   = 3
                                       ) -> AutoModelForCausalLM:
         """
-            Fine-tunes the model using an instruction-based dataset.
+        Fine-tunes the model using an instruction-based dataset.
 
-            Arguments:
+        Arguments:
 
-                `output_dir`          {str, optional}    : Path to save the fine-tuned model. Defaults to "./instruction_ft_model".
-                
-                `batch_size`          {int, optional}    : Batch size for training. Defaults to 8.
-                
-                `learning_rate`      {float, optional}   : Learning rate for training. Defaults to 5e-5.
-                
-                `num_epochs`          {int, optional}    : Number of training epochs. Defaults to 3.
-
-            Raises:
-                
-                ValueError: If the model or prepared dataset is not loaded.
-
-            Returns:
-                
-                model: The fine-tuned model.
-
-            Functionality:
-                
-                - Configures training arguments for fine-tuning.
-                - Uses the Hugging Face `Trainer` class for training.
-                - Applies full fine-tuning (no parameter-efficient tuning).
-                - Saves the fine-tuned model and tokenizer to the specified output directory.
+            `output_dir`          {str, optional}    : Path to save the fine-tuned model. Defaults to "./instruction_ft_model".
             
-            """
+            `batch_size`          {int, optional}    : Batch size for training. Defaults to 8.
+            
+            `learning_rate`      {float, optional}   : Learning rate for training. Defaults to 5e-5.
+            
+            `num_epochs`          {int, optional}    : Number of training epochs. Defaults to 3.
+
+        Raises:
+            
+            ValueError: If the model or prepared dataset is not loaded.
+
+        Returns:
+            
+            model: The fine-tuned model.
+
+        Functionality:
+            
+            - Configures training arguments for fine-tuning.
+            - Uses the Hugging Face `Trainer` class for training.
+            - Applies full fine-tuning (no parameter-efficient tuning).
+            - Saves the fine-tuned model and tokenizer to the specified output directory.
+        
+        """
         
         if self.model is None or self.prepared_dataset is None:
             raise ValueError("Model and prepared dataset must be loaded first")
@@ -105,7 +121,6 @@ class InstructionFineTuning:
         trainer           = Trainer(model           = self.model,
                                     args            = training_args,
                                     train_dataset   = self.prepared_dataset["train"],
-                                    tokenizer       = self.tokenizer,
                                     data_collator   = DataCollatorForLanguageModeling(tokenizer = self.tokenizer, 
                                                                                       mlm       = False
                                                                                       ),
@@ -116,6 +131,8 @@ class InstructionFineTuning:
         total_start_time     = datetime.now()
         
         print(f"Fine-tuning started at: {total_start_time.strftime('%H:%M:%S')}")
+
+        self.model.train()
         
         print("Training model...")
         
