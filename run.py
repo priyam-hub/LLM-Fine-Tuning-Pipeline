@@ -44,15 +44,15 @@ def main():
     #                                             )
 
 
-    # # INSTRUCTION FINE-TUNING
+    # INSTRUCTION FINE-TUNING
 
-    # fine_tuner        = InstructionFineTuning(model = model, tokenizer = tokenizer, dataset = tokenized_dataset)
+    fine_tuner        = InstructionFineTuning(model = model, tokenizer = tokenizer, dataset = tokenized_dataset)
 
-    # fine_tuned_model  = fine_tuner.apply_instruction_fine_tuning(output_dir      = "./model/instruction_fine_tuned_model",
-    #                                                              batch_size      = 8,
-    #                                                              learning_rate   = 5e-5,
-    #                                                              num_epochs      = 3
-    #                                                              )
+    fine_tuned_model  = fine_tuner.apply_instruction_fine_tuning(output_dir      = "./model/instruction_fine_tuned_model",
+                                                                 batch_size      = 8,
+                                                                 learning_rate   = 5e-5,
+                                                                 num_epochs      = 3
+                                                                 )
 
     # fine_tuner        = SupervisedFineTuning(model = model, tokenizer = tokenizer, dataset = tokenized_dataset)
 
@@ -64,16 +64,15 @@ def main():
     #                                                              num_epochs      = 3
     #                                                              )
     
-    # RLHF FINE-TUNING
+    # # RLHF FINE-TUNING
 
-    fine_tuner        = RLHFTrainer(model=model, tokenizer=tokenizer, prepared_dataset=tokenized_dataset)
+    # fine_tuner        = RLHFTrainer(model=model, tokenizer=tokenizer, prepared_dataset=tokenized_dataset)
 
-    # Apply RLHF fine-tuning
-    fine_tuned_model  = fine_tuner.apply_rlhf(output_dir       = "./model/rlhf_fine_tuned_model",
-                                              reward_model_id  = None,
-                                              batch_size       = 4,
-                                              learning_rate    = 1e-5,
-                                              num_epochs       = 1)
+    # fine_tuned_model  = fine_tuner.apply_rlhf(output_dir       = "./model/rlhf_fine_tuned_model",
+    #                                           reward_model_id  = None,
+    #                                           batch_size       = 4,
+    #                                           learning_rate    = 1e-5,
+    #                                           num_epochs       = 1)
     
 
 
