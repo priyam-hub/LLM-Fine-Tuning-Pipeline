@@ -160,12 +160,12 @@ The LLM Fine-Tuning Pipeline follows these key steps:
    - Merge adapter weights if using PEFT
    - Quantize model for inference
    - Package model for deployment
-
+<!-- 
 ## 📊 Performance Benchmarks
 
 | Model | Method | Dataset | BLEU Score | Perplexity | Coherence | Training Time | GPU Memory |
 |-------|--------|---------|------------|------------|-----------|---------------|------------|
-| Bert-Base-Uncased | Instruction FT | IMDB | 46.2% | 27.8% | 0.85 | 5 hours | 12GB |
+| Bert-Base-Uncased | Instruction FT | IMDB | 46.2% | 27.8% | 0.85 | 5 hours | 12GB | -->
 
 
 ## 📚 Documentation
