@@ -1,5 +1,6 @@
 logs/
 data/
+model/
 llm_env/
 *.DS_Store
 __pycache__/
