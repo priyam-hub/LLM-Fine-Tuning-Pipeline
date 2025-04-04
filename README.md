@@ -1,6 +1,6 @@
 <div align="center">
 
-# 🔥 LLM Fine-Tuning Pipeline
+# 🔥 Pipeline for Fine-Tuning your Large Language Model
 
 [![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![Hugging Face](https://img.shields.io/badge/HuggingFace-Transformers-yellow.svg)](https://huggingface.co/transformers/)
