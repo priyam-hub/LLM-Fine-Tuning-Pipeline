@@ -1,6 +1,9 @@
 # DEPENDENCIES
 
+import time
 import torch
+from tqdm import tqdm
+from datetime import datetime
 
 from transformers import PreTrainedModel
 from transformers import PreTrainedTokenizer
@@ -34,7 +37,7 @@ class InferenceEngine:
         self.model.to(self.device)
 
     
-    def inference(self, prompt : str, max_length : int = 100, temperature : int = 0.7, num_return_sequences : int = 1) -> list:
+    def inference(self, prompt : str, max_length : int = 512, temperature : int = 0.7, num_return_sequences : int = 1) -> list:
         """
         Generate text using the fine-tuned model.
 
@@ -61,22 +64,43 @@ class InferenceEngine:
         if self.model is None or self.tokenizer is None:
             raise ValueError("Model and tokenizer must be loaded first")
         
-        print(f"Running inference with prompt: {prompt[:50]}...")
+        print(f"Running inference with prompt: {prompt[:200]}...")
         
         self.model.to(self.device)
-        
 
         inputs           = self.tokenizer(prompt, return_tensors = "pt").to(self.device)
+
+        start_time       = time.time()
+        start_dt         = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        
+        print(f"[START] Inference started at: {start_dt}")
+
+        generated_texts = []
         
         with torch.no_grad():
-            outputs      = self.model.generate(inputs.input_ids,
+            
+            for _ in tqdm(range(num_return_sequences), desc="Generating Text", unit="seq"):
+            
+                outputs  = self.model.generate(inputs.input_ids,
                                                max_length             = max_length,
                                                temperature            = temperature,
                                                num_return_sequences   = num_return_sequences,
                                                do_sample              = temperature > 0,
                                                pad_token_id           = self.tokenizer.eos_token_id
                                                )
+                
+                decoded  = self.tokenizer.decode(outputs[0], skip_special_tokens = True)
+                
+                generated_texts.append(decoded)
         
-        generated_texts  = [self.tokenizer.decode(output, skip_special_tokens = True) for output in outputs]
+                # generated_texts  = [self.tokenizer.decode(output, skip_special_tokens = True) for output in outputs]
         
+        end_time         = time.time()
+        end_dt           = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        duration         = end_time - start_time
+
+        print(f"\n[END] Inference completed at: {end_dt}")
+        print(f"[SUMMARY] Total time taken: {duration:.2f} seconds")
+        print(f"[SUMMARY] Number of sequences generated: {num_return_sequences}")
+
         return generated_texts

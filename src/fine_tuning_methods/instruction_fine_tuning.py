@@ -170,4 +170,4 @@ class InstructionFineTuning:
         self.tokenizer.save_pretrained(output_dir)
         print(f"Model saved to: {output_dir}")
         
-        return self.model
+        return self.model, self.tokenizer

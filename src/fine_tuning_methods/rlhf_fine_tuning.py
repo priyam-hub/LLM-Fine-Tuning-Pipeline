@@ -208,4 +208,4 @@ class RLHFTrainer:
         
         print(f"Model saved to: {output_dir}")
 
-        return self.model
+        return self.model, self.tokenizer

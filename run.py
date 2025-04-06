@@ -1,5 +1,7 @@
 # DEPENDENCIES
 
+import torch
+import datasets
 from re import split
 
 from src.utils.model_loader import ModelLoader
@@ -11,6 +13,8 @@ from src.fine_tuning_methods.rlhf_fine_tuning import RLHFTrainer
 from src.fine_tuning_methods.lora_fine_tuning import LoRAFineTuning
 from src.fine_tuning_methods.supervised_fine_tuning import SupervisedFineTuning
 from src.fine_tuning_methods.instruction_fine_tuning import InstructionFineTuning
+
+from src.llm_inference.llm_inference import InferenceEngine
 
 
 def main():
@@ -44,15 +48,15 @@ def main():
     #                                             )
 
 
-    # INSTRUCTION FINE-TUNING
+    # # INSTRUCTION FINE-TUNING
 
-    fine_tuner        = InstructionFineTuning(model = model, tokenizer = tokenizer, dataset = tokenized_dataset)
+    # fine_tuner        = InstructionFineTuning(model = model, tokenizer = tokenizer, dataset = tokenized_dataset)
 
-    fine_tuned_model  = fine_tuner.apply_instruction_fine_tuning(output_dir      = "./model/instruction_fine_tuned_model",
-                                                                 batch_size      = 8,
-                                                                 learning_rate   = 5e-5,
-                                                                 num_epochs      = 3
-                                                                 )
+    # fine_tuned_model  = fine_tuner.apply_instruction_fine_tuning(output_dir      = "./model/instruction_fine_tuned_model",
+    #                                                              batch_size      = 8,
+    #                                                              learning_rate   = 5e-5,
+    #                                                              num_epochs      = 3
+    #                                                              )
 
     # fine_tuner        = SupervisedFineTuning(model = model, tokenizer = tokenizer, dataset = tokenized_dataset)
 
@@ -74,6 +78,25 @@ def main():
     #                                           learning_rate    = 1e-5,
     #                                           num_epochs       = 1)
     
+
+    inference_engine   = InferenceEngine(model      = model, 
+                                         tokenizer  = tokenizer, 
+                                         device     = "cuda" if torch.cuda.is_available() else "cpu"
+                                         )
+
+    # Example prompt from the dataset
+    sample_prompt      = prompt_template.format(instruction = dataset["test"][0]["text"])
+
+    # Run inference
+    generated_outputs  = inference_engine.inference(prompt                = sample_prompt, 
+                                                    max_length            = 512, 
+                                                    temperature           = 0.7, 
+                                                    num_return_sequences  = 3
+                                                    )
+
+    # Print the result
+    for idx, output in enumerate(generated_outputs):
+        print(f"\nGenerated Output {idx + 1}:\n{output}")
 
 
 if __name__ == "__main__":
