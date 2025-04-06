@@ -16,6 +16,8 @@ from src.fine_tuning_methods.instruction_fine_tuning import InstructionFineTunin
 
 from src.llm_inference.llm_inference import InferenceEngine
 
+from src.llm_evaluation.llm_evaluation import ModelEvaluator
+
 
 def main():
 
@@ -78,25 +80,35 @@ def main():
     #                                           learning_rate    = 1e-5,
     #                                           num_epochs       = 1)
     
+    # # LLM - INFERENCE
 
-    inference_engine   = InferenceEngine(model      = model, 
-                                         tokenizer  = tokenizer, 
-                                         device     = "cuda" if torch.cuda.is_available() else "cpu"
-                                         )
+    # inference_engine   = InferenceEngine(model      = model, 
+    #                                      tokenizer  = tokenizer, 
+    #                                      device     = "cuda" if torch.cuda.is_available() else "cpu"
+    #                                      )
 
-    # Example prompt from the dataset
-    sample_prompt      = prompt_template.format(instruction = dataset["test"][0]["text"])
+    # sample_prompt      = prompt_template.format(instruction = dataset["test"][0]["text"])
 
-    # Run inference
-    generated_outputs  = inference_engine.inference(prompt                = sample_prompt, 
-                                                    max_length            = 512, 
-                                                    temperature           = 0.7, 
-                                                    num_return_sequences  = 3
-                                                    )
+    # generated_outputs  = inference_engine.inference(prompt                = sample_prompt, 
+    #                                                 max_length            = 512, 
+    #                                                 temperature           = 0.7, 
+    #                                                 num_return_sequences  = 3
+    #                                                 )
+    # for idx, output in enumerate(generated_outputs):
+    #     print(f"\nGenerated Output {idx + 1}:\n{output}")
 
-    # Print the result
-    for idx, output in enumerate(generated_outputs):
-        print(f"\nGenerated Output {idx + 1}:\n{output}")
+    # LLM - EVALUATION
+
+    evaluator          = ModelEvaluator(model             = model,
+                                        tokenizer         = tokenizer,
+                                        device            = "cuda" if torch.cuda.is_available() else "cpu",
+                                        prepared_dataset  = tokenized_dataset
+                                        )
+
+
+    results = evaluator.evaluate(metric = "all")
+
+    print(f"\nEvaluation Results:\n{results}")
 
 
 if __name__ == "__main__":

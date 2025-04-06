@@ -6,4 +6,6 @@ torch
 numpy
 evaluate
 datasets
+tabulate
 transformers
+sentencepiece

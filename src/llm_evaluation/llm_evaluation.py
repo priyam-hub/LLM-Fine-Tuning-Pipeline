@@ -1,11 +1,12 @@
 # DEPENDENCIES  
 
 import torch
+import datasets
 from tqdm import tqdm
+from datetime import datetime
+from tabulate import tabulate
 
 from nltk.translate.bleu_score import corpus_bleu
-
-import datasets
 
 import transformers
 from transformers import PreTrainedTokenizer
@@ -78,26 +79,29 @@ class ModelEvaluator:
         if self.model is None or self.tokenizer is None:
             raise ValueError("Model and tokenizer must be loaded first")
         
-        dataset                    = test_dataset or self.prepared_dataset["test"] if "test" in self.prepared_dataset else self.prepared_dataset["train"]
+        dataset                        = test_dataset or self.prepared_dataset["test"] if "test" in self.prepared_dataset else self.prepared_dataset["train"]
         
         print(f"Evaluating model with {metric} metric...")
         
-        results                    = {}
+        results                        = {}
         
         self.model.to(self.device)
+
+        start_time                     = datetime.now()
+        print(f"[START] Evaluation started at: {start_time.strftime('%Y-%m-%d %H:%M:%S')}\n")
         
         if metric == "perplexity" or metric == "all":
             
             print("Calculating perplexity...")
             
             self.model.eval()
-            total_loss             = 0
-            total_tokens           = 0
+            total_loss                 = 0
+            total_tokens               = 0
             
             with torch.no_grad():
-            
-                for i in tqdm(range(0, len(dataset), 8)):  
-            
+
+                for i in tqdm(range(0, len(dataset), 8), desc = "Perplexity Evaluation", unit = "batch"):
+    
                     batch          = dataset[i:i+8]
                     inputs         = {k: torch.tensor(v).to(self.device) for k, v in batch.items() if k != "attention_mask"}
                     
@@ -107,20 +111,21 @@ class ModelEvaluator:
                     total_loss    += loss.item() * inputs["input_ids"].size(0)
                     total_tokens  += inputs["input_ids"].size(0) * inputs["input_ids"].size(1)
             
-            perplexity             = torch.exp(torch.tensor(total_loss / total_tokens))
+            perplexity                 = torch.exp(torch.tensor(total_loss / total_tokens))
             
-            results["perplexity"]  = perplexity.item()
+            results["perplexity"]      = perplexity.item()
         
         if metric == "coherence" or metric == "all":
             
             print("Calculating coherence...")
             
             self.model.eval()
-            total_coherence = 0
+            total_coherence            = 0
             
             with torch.no_grad():
             
-                for i in tqdm(range(min(100, len(dataset)))):  
+                for i in tqdm(range(min(100, len(dataset))), desc = "Coherence Evaluation", unit = "sample"):  
+                    
                     sample             = dataset[i]
                     input_ids          = torch.tensor(sample["input_ids"]).unsqueeze(0).to(self.device)
                     
@@ -142,27 +147,41 @@ class ModelEvaluator:
             
             print("Calculating BLEU score...")
 
-            references       = []
-            candidates       = []
+            references                 = []
+            candidates                 = []
             
-            for i in tqdm(range(min(100, len(dataset)))):
-                sample       = dataset[i]
+            for i in tqdm(range(min(100, len(dataset))), desc = "BLEU Evaluation", unit = "sample"):
+                
+                sample                 = dataset[i]
                 
 
-                input_text   = self.tokenizer.decode(sample["input_ids"][:50])  
+                input_text             = self.tokenizer.decode(sample["input_ids"][:50])  
                 
-                reference    = self.tokenizer.decode(sample["input_ids"][50:])
+                reference              = self.tokenizer.decode(sample["input_ids"][50:])
                 references.append([reference.split()])
                 
-                output       = self.inference(input_text)[0]
+                output                 = self.inference(input_text)[0]
                 candidates.append(output.split())
 
-            bleu             = corpus_bleu(references, candidates)
-            results["bleu"]  = bleu
+            bleu                       = corpus_bleu(references, candidates)
+            results["bleu"]            = bleu
         
         print("Evaluation complete:")
+
+        end_time                       = datetime.now()
         
-        for k, v in results.items():
-            print(f"{k}: {v}")
+        print(f"\n[END] Evaluation finished at: {end_time.strftime('%Y-%m-%d %H:%M:%S')}")
+        print(f"[TIME] Total time taken: {str(end_time - start_time)}\n")
+        
+        # for k, v in results.items():
+        #     print(f"{k}: {v}")
+
+        print("Evaluation Summary:\n")
+        table_data                     = [[metric_name, f"{score:.4f}"] for metric_name, score in results.items()]
+        
+        print(tabulate(table_data, 
+                       headers  = ["Metric", "Score"], 
+                       tablefmt = "grid"
+                       ))
         
         return results
