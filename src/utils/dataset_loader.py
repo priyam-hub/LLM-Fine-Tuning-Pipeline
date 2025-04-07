@@ -4,6 +4,11 @@ import os
 import datasets
 from datasets import DatasetDict
 from datasets import load_dataset
+from regex import E
+
+from ..utils.logger import LoggerSetup
+
+datasetLoader_logger = LoggerSetup(logger_name = "dataset_loader.py", log_filename_prefix = "<dataset_loader>").get_logger()
 
 
 class DatasetLoader:
@@ -20,8 +25,15 @@ class DatasetLoader:
             dataset            : The dataset to be used for fine-tuning (initially None)
 
         """
+
+        try:
         
-        self.dataset = None
+            self.dataset = None
+            datasetLoader_logger.info("DatasetLoader initialized successfully")
+        
+        except Exception as e:
+            datasetLoader_logger.error(f"Error initializing DatasetLoader: {repr(e)}")
+
 
     def load_dataset(self, dataset : str) -> datasets.DatasetDict:
             
@@ -58,10 +70,10 @@ class DatasetLoader:
 
             self.dataset = load_dataset(dataset)
             
-            print(f"Loaded dataset from Hugging Face: {dataset}")
+            datasetLoader_logger.info(f"Loaded dataset from Hugging Face: {dataset}")
         
         # LOADING DATASET FROM LOCAL FILE
-        except:
+        except Exception as e:
 
             if os.path.exists(dataset):
                 extension = os.path.splitext(dataset)[1]
@@ -80,10 +92,13 @@ class DatasetLoader:
                 else:
                     raise ValueError(f"Unsupported file extension: {extension}")
                     
-                print(f"Loaded dataset from local file: {dataset}")
+                datasetLoader_logger.info(f"Loaded dataset from local file: {dataset}")
         
             else:
+                datasetLoader_logger.error(f"Dataset {dataset} not found")
                 raise ValueError(f"Dataset {dataset} not found")
+            
+            datasetLoader_logger.error(f"Error loading dataset: {repr(e)}")
         
         print(f"Dataset loaded with {len(self.dataset['train'])} training examples")
         
@@ -104,23 +119,31 @@ class DatasetLoader:
             ValueError : If the file extension is unsupported.
         
         """
-        extension        = os.path.splitext(file_path)[1]
+        try:
         
-        if extension    == '.csv':
-            dataset['train'].to_csv(file_path, index=False)
-        
-        elif extension  == '.json':
-            dataset['train'].to_json(file_path, orient = 'records', lines = True)
-        
-        elif extension  == '.txt':
+            extension        = os.path.splitext(file_path)[1]
             
-            with open(file_path, 'w') as f:
+            if extension    == '.csv':
+                dataset['train'].to_csv(file_path, index=False)
             
-                for item in dataset['train']:
+            elif extension  == '.json':
+                dataset['train'].to_json(file_path, orient = 'records', lines = True)
             
-                    f.write(f"{item}\n")
-        
-        else:
-            raise ValueError(f"Unsupported file extension: {extension}")
-        
-        print(f"Dataset saved successfully to {file_path}")
+            elif extension  == '.txt':
+                
+                with open(file_path, 'w') as f:
+                
+                    for item in dataset['train']:
+                
+                        f.write(f"{item}\n")
+            
+            else:
+                datasetLoader_logger.error(f"Unsupported file extension: {extension}")
+                raise ValueError(f"Unsupported file extension: {extension}")
+            
+            datasetLoader_logger.info(f"Dataset saved successfully to {file_path}")
+
+        except Exception as e:
+            datasetLoader_logger.error(f"Error saving dataset: {repr(e)}")
+            
+            raise ValueError(f"Error saving dataset: {repr(e)}")

@@ -1,5 +1,6 @@
 # DEPENDENCIES
 
+from math import e
 import re
 import datasets
 from re import A
@@ -8,6 +9,10 @@ from sympy import N
 import transformers
 from transformers import PreTrainedTokenizer
 from transformers import AutoModelForCausalLM
+
+from ..utils.logger import LoggerSetup
+
+dataPreparation_logger = LoggerSetup(logger_name = "prepare_dataset.py", log_filename_prefix = "prepare_dataset").get_logger()
 
 
 class DatasetPreparer:
@@ -36,10 +41,19 @@ class DatasetPreparer:
             `model`       {transformers.PreTrainedModel}     : The model to determine tokenization behavior.
         
         """
-        self.model             = model
-        self.dataset           = dataset
-        self.tokenizer         = tokenizer
-        self.prepared_dataset  = None
+
+        try:
+            self.model             = model
+            self.dataset           = dataset
+            self.tokenizer         = tokenizer
+            self.prepared_dataset  = None
+
+            dataPreparation_logger.info("DatasetPreparer initialized successfully") 
+
+        except Exception as e:
+            dataPreparation_logger.error(dataPreparation_logger, f"Error initializing DatasetPreparer: {repr(e)}")
+            
+            raise e
 
     def prepare_dataset(self, 
                         max_length          : int = 512, 
@@ -83,13 +97,16 @@ class DatasetPreparer:
         """
         
         if self.tokenizer is None or self.dataset is None:
+            dataPreparation_logger.error("Tokenizer and dataset must be loaded before preparing the dataset")
             raise ValueError("Model tokenizer and dataset must be loaded first")
         
-        print("Preparing dataset for fine-tuning...")
+        dataPreparation_logger.info("Preparing dataset for fine-tuning...")
         
         # FOR INSTRUCTION FINE-TUNING
         
         if instruction_column and response_column:
+
+            dataPreparation_logger.info("Preparing dataset for instruction fine-tuning...")
         
             def format_instruction(example : dict) -> dict:
                 """
@@ -111,17 +128,26 @@ class DatasetPreparer:
                     - If no template is provided, it defaults to `"Instruction: {instruction}\nResponse: "`.
                 """
 
-                label_map                  = {0: "negative", 1: "positive"}
-                sentiment                  = label_map.get(example.get("label", -1), "unknown")
-                
-                if prompt_template:
-                    prompt                 = prompt_template.format(instruction = example["text"])
-                    example["input_text"]  = prompt
-                    example["output_text"] = sentiment
-        
-                else:
-                    example["input_text"]  = f"Given the following movie review, determine if the sentiment is positive or negative:\n\nReview: {example['text']}\nSentiment:"
-                    example["output_text"] = sentiment
+                try:
+
+                    label_map                  = {0: "negative", 1: "positive"}
+                    sentiment                  = label_map.get(example.get("label", -1), "unknown")
+                    
+                    if prompt_template:
+                        prompt                 = prompt_template.format(instruction = example["text"])
+                        example["input_text"]  = prompt
+                        example["output_text"] = sentiment
+            
+                    else:
+                        example["input_text"]  = f"Given the following movie review, determine if the sentiment is positive or negative:\n\nReview: {example['text']}\nSentiment:"
+                        example["output_text"] = sentiment
+
+                    dataPreparation_logger.debug(f"Formatted example: {example}")
+
+                except KeyError as e:
+                    dataPreparation_logger.error(f"KeyError in format_instruction: {repr(e)}")
+                    
+                    raise e
      
                 return example
             
@@ -158,34 +184,50 @@ class DatasetPreparer:
                     - The `output_text` is tokenized to create the `labels`.
 
                 """
+
+                try:
+
+                    dataPreparation_logger.info("Tokenizing input and output text...")
         
-                model_inputs               = self.tokenizer(examples["input_text"], 
-                                                            truncation      = True, 
-                                                            max_length      = max_length, 
-                                                            padding         = "max_length",
-                                                            return_tensors  = None,
-                                                            )
+                    model_inputs               = self.tokenizer(examples["input_text"], 
+                                                                truncation      = True, 
+                                                                max_length      = max_length, 
+                                                                padding         = "max_length",
+                                                                return_tensors  = None,
+                                                                )
+                    
+                    # FOR DECODER-ONLY MODELS
+                    if isinstance(self.model, AutoModelForCausalLM):
+                        model_inputs["labels"] = model_inputs["input_ids"].copy()
+
+                        dataPreparation_logger.info(f"Tokenized input text for Decoder Only Models: {model_inputs['input_ids']}")
+            
+                    # FOR ENCODER-ONLY MODELS
+                    else:
+                        
+                        labels                 = self.tokenizer(examples["output_text"],
+                                                                truncation      = True,
+                                                                max_length      = max_length,
+                                                                padding         = "max_length",
+                                                                return_tensors  = None,
+                                                                )
+                        
+                        model_inputs["labels"] = labels["input_ids"]
+
+                        dataPreparation_logger.info(f"Tokenized input text for Encoder Only models: {model_inputs['input_ids']}")
+                        
+                    return model_inputs
                 
-                # FOR DECODER-ONLY MODELS
-                if isinstance(self.model, AutoModelForCausalLM):
-                    model_inputs["labels"] = model_inputs["input_ids"].copy()
-        
-                # FOR ENCODER-ONLY MODELS
-                else:
+                except Exception as e:
+                    dataPreparation_logger.error(f"Error in tokenize_function: {repr(e)}")
                     
-                    labels                 = self.tokenizer(examples["output_text"],
-                                                            truncation      = True,
-                                                            max_length      = max_length,
-                                                            padding         = "max_length",
-                                                            return_tensors  = None,
-                                                            )
-                    
-                    model_inputs["labels"] = labels["input_ids"]
-                    
-                return model_inputs
+                    raise e
         
         # FOR REGULAR LANGUAGE MODEL FINE-TUNING
         else:
+
+            dataPreparation_logger.info("Preparing dataset for regular language model fine-tuning...")
+
             text_column                    = text_column or "text"
             
             def tokenize_function(examples : str) -> dict:
@@ -217,15 +259,23 @@ class DatasetPreparer:
                                       return_tensors  = None,
                                       )
         
-        print("Tokenizing dataset...")
+
+        try:
+
+            dataPreparation_logger.info("Tokenizing dataset...")
         
-        tokenized_dataset             = formatted_dataset.map(tokenize_function,
-                                                              batched         = True,
-                                                              remove_columns  = ["text", "label", "input_text", "output_text"],
-                                                              )
+            tokenized_dataset             = formatted_dataset.map(tokenize_function,
+                                                                batched         = True,
+                                                                remove_columns  = ["text", "label", "input_text", "output_text"],
+                                                                )
+            
+            self.prepared_dataset         = tokenized_dataset
+            
+            dataPreparation_logger.info("Dataset preparation completed")
+            
+            return self.prepared_dataset
         
-        self.prepared_dataset         = tokenized_dataset
-        
-        print("Dataset preparation completed")
-        
-        return self.prepared_dataset
+        except Exception as e:
+            dataPreparation_logger.error(f"Error in prepare_dataset: {repr(e)}")
+            
+            raise e

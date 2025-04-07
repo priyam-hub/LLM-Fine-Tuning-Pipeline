@@ -13,6 +13,10 @@ from transformers import DataCollatorForLanguageModeling
 
 from ..fine_tuning_methods.lora_fine_tuning import LoRAFineTuning
 
+from ..utils.logger import LoggerSetup
+
+instructionFT_logger = LoggerSetup(logger_name = "instruction_fine_tuning.py", log_filename_prefix = "instruction_fine_tuning").get_logger()
+
 
 class InstructionFineTuning:
     """
@@ -34,30 +38,35 @@ class InstructionFineTuning:
             `device`       {str, optional}        : The device to run training on ('cuda' or 'cpu'). Defaults to GPU if available.
         """
         
+        try:
 
-        lora_adapter      = LoRAFineTuning(model = model)
-    
-        quantized_model   = lora_adapter.apply_lora(rank            = 8, 
-                                                    lora_alpha      = 16, 
-                                                    lora_dropout    = 0.1,
-                                                    target_modules  = ["query", "key", "value"]
-                                                    )
+            lora_adapter      = LoRAFineTuning(model = model)
+        
+            quantized_model   = lora_adapter.apply_lora(rank            = 8, 
+                                                        lora_alpha      = 16, 
+                                                        lora_dropout    = 0.1,
+                                                        target_modules  = ["query", "key", "value"]
+                                                        )
 
-        self.model                  = quantized_model
-        self.tokenizer              = tokenizer
-        self.prepared_dataset       = dataset
-        self.device                 = device
+            self.model                  = quantized_model
+            self.tokenizer              = tokenizer
+            self.prepared_dataset       = dataset
+            self.device                 = device
 
-        for param in self.model.parameters():
-            param.requires_grad     = True
+            for param in self.model.parameters():
+                param.requires_grad     = True
 
-        if hasattr(self.model, "gradient_checkpointing_enable"):
-            self.model.gradient_checkpointing_enable()
+            if hasattr(self.model, "gradient_checkpointing_enable"):
+                self.model.gradient_checkpointing_enable()
 
-        if torch.cuda.is_available() and torch.__version__ >= "2.0":
-            self.model = torch.compile(self.model)
+            if torch.cuda.is_available() and torch.__version__ >= "2.0":
+                self.model = torch.compile(self.model)
 
-        self.model.train()
+            self.model.train()
+
+        except Exception as e:
+            instructionFT_logger.exception(f"Error initializing InstructionFineTuning: {repr(e)}")
+            raise
 
     def apply_instruction_fine_tuning(self, 
                                       output_dir     : str   = "./instruction_fine_tuned_model", 
