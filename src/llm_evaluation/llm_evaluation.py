@@ -15,6 +15,10 @@ from nltk.translate.bleu_score import corpus_bleu
 import transformers
 from transformers import PreTrainedTokenizer
 
+from ..utils.logger import LoggerSetup
+
+llm_evaluation_logger = LoggerSetup(logger_name = "llm_evaluation.py", log_filename_prefix = "llm_evaluation").get_logger()
+
 class ModelEvaluator:
     """
     A class for evaluating the performance of a fine-tuned model using different evaluation metrics.
@@ -38,10 +42,20 @@ class ModelEvaluator:
             `prepared_dataset`        {dict, optional}               : The dataset prepared for evaluation, containing train and test splits.
         
         """
-        self.model             = model
-        self.device            = device
-        self.tokenizer         = tokenizer
-        self.prepared_dataset  = prepared_dataset if prepared_dataset else {}
+
+        try:
+
+            self.model             = model
+            self.device            = device
+            self.tokenizer         = tokenizer
+            self.prepared_dataset  = prepared_dataset if prepared_dataset else {}
+
+            llm_evaluation_logger.info(f"ModelEvaluator initialized with device: {self.device}")
+
+        except Exception as e:
+            llm_evaluation_logger.error(llm_evaluation_logger, f"Error initializing ModelEvaluator: {repr(e)}")
+
+            raise e
 
     def inference(self, input_text : str) -> list:
         """
@@ -65,12 +79,20 @@ class ModelEvaluator:
             - The model is run in no-grad mode to disable gradient computation during inference.
         """
 
-        inputs        = self.tokenizer(input_text, return_tensors="pt").to(self.model.device)
+        try:
         
-        with torch.no_grad():
-            outputs   = self.model.generate(**inputs, max_new_tokens = 100)
+            inputs        = self.tokenizer(input_text, return_tensors="pt").to(self.model.device)
+            
+            with torch.no_grad():
+                outputs   = self.model.generate(**inputs, max_new_tokens = 100)
+                llm_evaluation_logger.info(f"Model inference completed for input: {input_text}")
+            
+            return self.tokenizer.batch_decode(outputs, skip_special_tokens = True)
         
-        return self.tokenizer.batch_decode(outputs, skip_special_tokens = True)
+        except Exception as e:
+            llm_evaluation_logger.error(f"Error during inference: {repr(e)}")
+
+            raise e
 
 
     def evaluate(self, test_dataset : datasets.DatasetDict = None, metric : str = "perplexity") -> dict:
@@ -108,159 +130,167 @@ class ModelEvaluator:
             - BLEU score compares generated outputs with reference texts.
             - The evaluation may use a subset of the dataset (e.g., first 100 examples for coherence and BLEU).
         """
-        
-        if self.model is None or self.tokenizer is None:
-            raise ValueError("Model and tokenizer must be loaded first")
-        
-        dataset                        = test_dataset or self.prepared_dataset["test"] if "test" in self.prepared_dataset else self.prepared_dataset["train"]
-        
-        print(f"Evaluating model with {metric} metric...")
-        
-        results                        = {}
-        
-        self.model.to(self.device)
 
-        start_time                     = datetime.now()
-        print(f"[START] Evaluation started at: {start_time.strftime('%Y-%m-%d %H:%M:%S')}\n")
+        try:
         
-        if metric == "perplexity" or metric == "all":
+            if self.model is None or self.tokenizer is None:
+                llm_evaluation_logger.error("Model and tokenizer must be loaded before evaluation.")
+                raise ValueError("Model and tokenizer must be loaded first")
             
-            print("Calculating perplexity...")
+            dataset                        = test_dataset or self.prepared_dataset["test"] if "test" in self.prepared_dataset else self.prepared_dataset["train"]
             
-            self.model.eval()
-            total_loss                 = 0
-            total_tokens               = 0
+            llm_evaluation_logger.info(f"Evaluating model with {metric} metric...")
             
-            with torch.no_grad():
+            results                        = {}
+            
+            self.model.to(self.device)
 
-                for i in tqdm(range(0, len(dataset), 8), desc = "Perplexity Evaluation", unit = "batch"):
-    
-                    batch          = dataset[i:i+8]
-                    inputs         = {k: torch.tensor(v).to(self.device) for k, v in batch.items() if k != "attention_mask"}
-                    
-                    outputs        = self.model(**inputs)
-                    loss           = outputs.loss
-                    
-                    total_loss    += loss.item() * inputs["input_ids"].size(0)
-                    total_tokens  += inputs["input_ids"].size(0) * inputs["input_ids"].size(1)
+            start_time                     = datetime.now()
+            llm_evaluation_logger.info(f"[START] Evaluation started at: {start_time.strftime('%Y-%m-%d %H:%M:%S')}\n")
             
-            perplexity                 = torch.exp(torch.tensor(total_loss / total_tokens))
-            
-            results["perplexity"]      = perplexity.item()
-        
-        if metric == "coherence" or metric == "all":
-            
-            print("Calculating coherence...")
-            
-            self.model.eval()
-            total_coherence            = 0
-            
-            with torch.no_grad():
-            
-                for i in tqdm(range(min(100, len(dataset))), desc = "Coherence Evaluation", unit = "sample"):  
-                    
-                    sample             = dataset[i]
-                    input_ids          = torch.tensor(sample["input_ids"]).unsqueeze(0).to(self.device)
-                    
-                    outputs            = self.model(input_ids)
-                    logits             = outputs.logits
-                    
-                    shift_logits       = logits[:, :-1, :].contiguous()
-                    shift_labels       = input_ids[:, 1:].contiguous()
-                    
-                    log_probs          = torch.log_softmax(shift_logits, dim=-1)
-                    token_log_probs    = log_probs.gather(-1, shift_labels.unsqueeze(-1)).squeeze(-1)
-                    
-                    coherence          = token_log_probs.mean().item()
-                    total_coherence   += coherence
-            
-            results["coherence"]       = total_coherence / min(100, len(dataset))   
-
-        if metric == "bleu" or metric == "all":
-            
-            print("Calculating BLEU score...")
-
-            references                 = []
-            candidates                 = []
-            
-            for i in tqdm(range(min(100, len(dataset))), desc = "BLEU Evaluation", unit = "sample"):
+            if metric == "perplexity" or metric == "all":
                 
-                sample                 = dataset[i]
+                llm_evaluation_logger.info("Calculating perplexity...")
                 
-
-                input_text             = self.tokenizer.decode(sample["input_ids"][:50])  
+                self.model.eval()
+                total_loss                 = 0
+                total_tokens               = 0
                 
-                reference              = self.tokenizer.decode(sample["input_ids"][50:])
-                references.append([reference.split()])
+                with torch.no_grad():
+
+                    for i in tqdm(range(0, len(dataset), 8), desc = "Perplexity Evaluation", unit = "batch"):
+        
+                        batch              = dataset[i:i+8]
+                        inputs             = {k: torch.tensor(v).to(self.device) for k, v in batch.items() if k != "attention_mask"}
+                        
+                        outputs            = self.model(**inputs)
+                        loss               = outputs.loss
+                        
+                        total_loss        += loss.item() * inputs["input_ids"].size(0)
+                        total_tokens      += inputs["input_ids"].size(0) * inputs["input_ids"].size(1)
                 
-                output                 = self.inference(input_text)[0]
-                candidates.append(output.split())
-
-            bleu                       = corpus_bleu(references, candidates)
-            results["bleu"]            = bleu
-
-        if metric == "rouge" or metric == "all":
+                perplexity                 = torch.exp(torch.tensor(total_loss / total_tokens))
+                
+                results["perplexity"]      = perplexity.item()
             
-            print("Calculating ROUGE score...")
-
-            rouge                      = evaluate.load("rouge")
-
-            references                 = []
-            predictions                = []
-
-            for i in tqdm(range(min(100, len(dataset))), desc = "ROUGE Evaluation", unit = "sample"):
+            if metric == "coherence" or metric == "all":
                 
-                sample                 = dataset[i]
-                input_text             = self.tokenizer.decode(sample["input_ids"][:50])
-                reference              = self.tokenizer.decode(sample["input_ids"][50:])
-                output                 = self.inference(input_text)[0]
+                llm_evaluation_logger.info("Calculating coherence...")
+                
+                self.model.eval()
+                total_coherence            = 0
+                
+                with torch.no_grad():
+                
+                    for i in tqdm(range(min(100, len(dataset))), desc = "Coherence Evaluation", unit = "sample"):  
+                        
+                        sample             = dataset[i]
+                        input_ids          = torch.tensor(sample["input_ids"]).unsqueeze(0).to(self.device)
+                        
+                        outputs            = self.model(input_ids)
+                        logits             = outputs.logits
+                        
+                        shift_logits       = logits[:, :-1, :].contiguous()
+                        shift_labels       = input_ids[:, 1:].contiguous()
+                        
+                        log_probs          = torch.log_softmax(shift_logits, dim=-1)
+                        token_log_probs    = log_probs.gather(-1, shift_labels.unsqueeze(-1)).squeeze(-1)
+                        
+                        coherence          = token_log_probs.mean().item()
+                        total_coherence   += coherence
+                
+                results["coherence"]       = total_coherence / min(100, len(dataset))   
 
-                references.append(reference)
-                predictions.append(output)
+            if metric == "bleu" or metric == "all":
+                
+                llm_evaluation_logger.info("Calculating BLEU score...")
 
-            rouge_result                = rouge.compute(predictions=predictions, references=references)
+                references                 = []
+                candidates                 = []
+                
+                for i in tqdm(range(min(100, len(dataset))), desc = "BLEU Evaluation", unit = "sample"):
+                    
+                    sample                 = dataset[i]
+                    
+
+                    input_text             = self.tokenizer.decode(sample["input_ids"][:50])  
+                    
+                    reference              = self.tokenizer.decode(sample["input_ids"][50:])
+                    references.append([reference.split()])
+                    
+                    output                 = self.inference(input_text)[0]
+                    candidates.append(output.split())
+
+                bleu                       = corpus_bleu(references, candidates)
+                results["bleu"]            = bleu
+
+            if metric == "rouge" or metric == "all":
+                
+                llm_evaluation_logger.info("Calculating ROUGE score...")
+
+                rouge                      = evaluate.load("rouge")
+
+                references                 = []
+                predictions                = []
+
+                for i in tqdm(range(min(100, len(dataset))), desc = "ROUGE Evaluation", unit = "sample"):
+                    
+                    sample                 = dataset[i]
+                    input_text             = self.tokenizer.decode(sample["input_ids"][:50])
+                    reference              = self.tokenizer.decode(sample["input_ids"][50:])
+                    output                 = self.inference(input_text)[0]
+
+                    references.append(reference)
+                    predictions.append(output)
+
+                rouge_result                = rouge.compute(predictions=predictions, references=references)
+                
+                for key, value in rouge_result.items():
+                    results[f"rouge_{key}"] = value
             
-            for key, value in rouge_result.items():
-                results[f"rouge_{key}"] = value
+            if metric == "meteor" or metric == "all":
+            
+                llm_evaluation_logger.info("Calculating METEOR score...")
+
+                meteor                       = evaluate.load("meteor")
+
+                references                   = []
+                predictions                  = []
+
+                for i in tqdm(range(min(100, len(dataset))), desc = "METEOR Evaluation", unit = "sample"):
+                    
+                    sample                   = dataset[i]
+                    input_text               = self.tokenizer.decode(sample["input_ids"][:50])
+                    reference                = self.tokenizer.decode(sample["input_ids"][50:])
+                    output                   = self.inference(input_text)[0]
+
+                    references.append(reference)
+                    predictions.append(output)
+
+                meteor_result                = meteor.compute(predictions = predictions, references = references)
+                results["meteor"]            = meteor_result["meteor"]
+
+            llm_evaluation_logger.info("Evaluation complete:")
+
+            end_time                       = datetime.now()
+            
+            llm_evaluation_logger.info(f"\n[END] Evaluation finished at: {end_time.strftime('%Y-%m-%d %H:%M:%S')}")
+            llm_evaluation_logger.info(f"[TIME] Total time taken: {str(end_time - start_time)}\n")
+            
+            # for k, v in results.items():
+            #     print(f"{k}: {v}")
+
+            llm_evaluation_logger.info("Evaluation Summary:\n")
+            table_data                     = [[metric_name, f"{score:.4f}"] for metric_name, score in results.items()]
+            
+            llm_evaluation_logger.info(tabulate(table_data, 
+                        headers  = ["Metric", "Score"], 
+                        tablefmt = "grid"
+                        ))
+            
+            return results
         
-        if metric == "meteor" or metric == "all":
-           
-            print("Calculating METEOR score...")
+        except Exception as e:
+            llm_evaluation_logger.error(f"Error during evaluation: {repr(e)}")
 
-            meteor                       = evaluate.load("meteor")
-
-            references                   = []
-            predictions                  = []
-
-            for i in tqdm(range(min(100, len(dataset))), desc = "METEOR Evaluation", unit = "sample"):
-                
-                sample                   = dataset[i]
-                input_text               = self.tokenizer.decode(sample["input_ids"][:50])
-                reference                = self.tokenizer.decode(sample["input_ids"][50:])
-                output                   = self.inference(input_text)[0]
-
-                references.append(reference)
-                predictions.append(output)
-
-            meteor_result                = meteor.compute(predictions = predictions, references = references)
-            results["meteor"]            = meteor_result["meteor"]
-
-        print("Evaluation complete:")
-
-        end_time                       = datetime.now()
-        
-        print(f"\n[END] Evaluation finished at: {end_time.strftime('%Y-%m-%d %H:%M:%S')}")
-        print(f"[TIME] Total time taken: {str(end_time - start_time)}\n")
-        
-        # for k, v in results.items():
-        #     print(f"{k}: {v}")
-
-        print("Evaluation Summary:\n")
-        table_data                     = [[metric_name, f"{score:.4f}"] for metric_name, score in results.items()]
-        
-        print(tabulate(table_data, 
-                       headers  = ["Metric", "Score"], 
-                       tablefmt = "grid"
-                       ))
-        
-        return results
+            raise e

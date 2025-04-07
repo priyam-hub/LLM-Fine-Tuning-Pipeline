@@ -58,14 +58,26 @@ class InstructionFineTuning:
 
             if hasattr(self.model, "gradient_checkpointing_enable"):
                 self.model.gradient_checkpointing_enable()
+                
+                instructionFT_logger.info("Gradient checkpointing enabled for memory efficiency.")
+            
+            else:
+                instructionFT_logger.warning("Gradient checkpointing not available for this model.")
 
             if torch.cuda.is_available() and torch.__version__ >= "2.0":
                 self.model = torch.compile(self.model)
+                
+                instructionFT_logger.info("Torch compilation enabled for performance optimization.")
+            
+            else:
+                instructionFT_logger.warning("Torch compilation not available for this model.")
 
             self.model.train()
+            instructionFT_logger
 
         except Exception as e:
             instructionFT_logger.exception(f"Error initializing InstructionFineTuning: {repr(e)}")
+            
             raise
 
     def apply_instruction_fine_tuning(self, 
@@ -103,80 +115,89 @@ class InstructionFineTuning:
             - Saves the fine-tuned model and tokenizer to the specified output directory.
         
         """
-        
-        if self.model is None or self.prepared_dataset is None:
-            raise ValueError("Model and prepared dataset must be loaded first")
-        
-        mixed_precision   = "bf16" if torch.cuda.is_available() and torch.cuda.is_bf16_supported() else "fp16"
 
-        print("Starting instruction fine-tuning...")
+        try:
         
-        training_args     = TrainingArguments(output_dir                   = output_dir,
-                                              per_device_train_batch_size  = batch_size,
-                                              learning_rate                = learning_rate,
-                                              num_train_epochs             = num_epochs,
-                                              save_strategy                = "steps",
-                                              save_steps                   = 500,
-                                              save_total_limit             = 2,
-                                              logging_dir                  = f"{output_dir}/logs",
-                                              logging_steps                = 50,
-                                              fp16                         = (mixed_precision == "fp16"),
-                                              bf16                         = (mixed_precision == "bf16"),
-                                              gradient_accumulation_steps  = 4,  
-                                              dataloader_num_workers       = 4, 
-                                              report_to                    = "none"  
-                                              )
-        
-        trainer           = Trainer(model           = self.model,
-                                    args            = training_args,
-                                    train_dataset   = self.prepared_dataset["train"],
-                                    data_collator   = DataCollatorForLanguageModeling(tokenizer = self.tokenizer, 
-                                                                                      mlm       = False
-                                                                                      ),
-                                    compute_metrics = None,
-                                    callbacks       = None,
-                                    )
-         
-        total_start_time     = datetime.now()
-        
-        print(f"Fine-tuning started at: {total_start_time.strftime('%H:%M:%S')}")
+            if self.model is None or self.prepared_dataset is None:
+                instructionFT_logger.error("Model or prepared dataset not loaded.")
+                raise ValueError("Model and prepared dataset must be loaded first")
+            
+            mixed_precision   = "bf16" if torch.cuda.is_available() and torch.cuda.is_bf16_supported() else "fp16"
 
-        self.model.train()
+            instructionFT_logger.info("Starting instruction fine-tuning...")
+            
+            training_args     = TrainingArguments(output_dir                   = output_dir,
+                                                per_device_train_batch_size  = batch_size,
+                                                learning_rate                = learning_rate,
+                                                num_train_epochs             = num_epochs,
+                                                save_strategy                = "steps",
+                                                save_steps                   = 500,
+                                                save_total_limit             = 2,
+                                                logging_dir                  = f"{output_dir}/logs",
+                                                logging_steps                = 50,
+                                                fp16                         = (mixed_precision == "fp16"),
+                                                bf16                         = (mixed_precision == "bf16"),
+                                                gradient_accumulation_steps  = 4,  
+                                                dataloader_num_workers       = 4, 
+                                                report_to                    = "none"  
+                                                )
+            
+            trainer           = Trainer(model           = self.model,
+                                        args            = training_args,
+                                        train_dataset   = self.prepared_dataset["train"],
+                                        data_collator   = DataCollatorForLanguageModeling(tokenizer = self.tokenizer, 
+                                                                                        mlm       = False
+                                                                                        ),
+                                        compute_metrics = None,
+                                        callbacks       = None,
+                                        )
+            
+            total_start_time     = datetime.now()
+            
+            instructionFT_logger.info(f"Fine-tuning started at: {total_start_time.strftime('%H:%M:%S')}")
+
+            self.model.train()
+            
+            instructionFT_logger.info("Training model...")
+            
+            for epoch in range(1, num_epochs + 1):
+                epoch_start_time = datetime.now()
+                
+                instructionFT_logger.info(f"\nEpoch {epoch}/{num_epochs} started at {epoch_start_time.strftime('%H:%M:%S')}")
+                
+                with tqdm(total        = len(self.prepared_dataset["train"]) // batch_size, 
+                        desc         = f"Epoch {epoch}/{num_epochs}", 
+                        bar_format   = "{l_bar}{bar} | {n_fmt}/{total_fmt} [Time Left: {remaining}]", 
+                        ncols        = 80
+                        ) as pbar:
+                
+                    trainer.train()
+                
+                    pbar.update(pbar.total)
+                
+                epoch_end_time   = datetime.now()
+                
+                time_taken       = epoch_end_time - epoch_start_time
+                
+                instructionFT_logger.info(f"Epoch {epoch} finished at {epoch_end_time.strftime('%H:%M:%S')} | Time Taken: {str(time_taken)}")
+            
+            total_end_time       = datetime.now()
+            total_time_taken     = total_end_time - total_start_time
+            
+            instructionFT_logger.info("\nFine-tuning Completed!")
+            instructionFT_logger.info(f"Total Training Time: {str(total_time_taken)}")
+            instructionFT_logger.info(f"Started at: {total_start_time.strftime('%H:%M:%S')}")
+            instructionFT_logger.info(f"Finished at: {total_end_time.strftime('%H:%M:%S')}")
+            
+            # Save the model
+            self.model.save_pretrained(output_dir)
+            self.tokenizer.save_pretrained(output_dir)
+            
+            instructionFT_logger.info(f"Model saved to: {output_dir}")
+            
+            return self.model, self.tokenizer
         
-        print("Training model...")
-        
-        for epoch in range(1, num_epochs + 1):
-            epoch_start_time = datetime.now()
+        except Exception as e:
+            instructionFT_logger.exception(f"Error during instruction fine-tuning: {repr(e)}")
             
-            print(f"\nEpoch {epoch}/{num_epochs} started at {epoch_start_time.strftime('%H:%M:%S')}")
-            
-            with tqdm(total        = len(self.prepared_dataset["train"]) // batch_size, 
-                      desc         = f"Epoch {epoch}/{num_epochs}", 
-                      bar_format   = "{l_bar}{bar} | {n_fmt}/{total_fmt} [Time Left: {remaining}]", 
-                      ncols        = 80
-                      ) as pbar:
-            
-                trainer.train()
-            
-                pbar.update(pbar.total)
-            
-            epoch_end_time   = datetime.now()
-            
-            time_taken       = epoch_end_time - epoch_start_time
-            
-            print(f"Epoch {epoch} finished at {epoch_end_time.strftime('%H:%M:%S')} | Time Taken: {str(time_taken)}")
-        
-        total_end_time       = datetime.now()
-        total_time_taken     = total_end_time - total_start_time
-        
-        print("\nFine-tuning Completed!")
-        print(f"Total Training Time: {str(total_time_taken)}")
-        print(f"Started at: {total_start_time.strftime('%H:%M:%S')}")
-        print(f"Finished at: {total_end_time.strftime('%H:%M:%S')}")
-        
-        # Save the model
-        self.model.save_pretrained(output_dir)
-        self.tokenizer.save_pretrained(output_dir)
-        print(f"Model saved to: {output_dir}")
-        
-        return self.model, self.tokenizer
+            raise
