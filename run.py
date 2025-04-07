@@ -47,63 +47,63 @@ def main():
                                                              )
 
 
-    # INSTRUCTION FINE-TUNING
+    # # INSTRUCTION FINE-TUNING
 
-    fine_tuner            = InstructionFineTuning(model      = model, 
-                                                  tokenizer  = tokenizer, 
-                                                  dataset    = tokenized_dataset
-                                                  )
+    # fine_tuner            = InstructionFineTuning(model      = model, 
+    #                                               tokenizer  = tokenizer, 
+    #                                               dataset    = tokenized_dataset
+    #                                               )
 
-    instruction_FT_model  = fine_tuner.apply_instruction_fine_tuning(output_dir      = Config.INSTRUCTION_FINE_TUNED_MODEL_PATH,
-                                                                     batch_size      = 8,
-                                                                     learning_rate   = 5e-5,
-                                                                     num_epochs      = 3
-                                                                     )
+    # instruction_FT_model  = fine_tuner.apply_instruction_fine_tuning(output_dir      = Config.INSTRUCTION_FINE_TUNED_MODEL_PATH,
+    #                                                                  batch_size      = 8,
+    #                                                                  learning_rate   = 5e-5,
+    #                                                                  num_epochs      = 3
+    #                                                                  )
 
-    # SUPERVISED FINE-TUNING
+    # # SUPERVISED FINE-TUNING
 
-    fine_tuner            = SupervisedFineTuning(model      = model, 
-                                                 tokenizer  = tokenizer, 
-                                                 dataset    = tokenized_dataset
-                                                 )
+    # fine_tuner            = SupervisedFineTuning(model      = model, 
+    #                                              tokenizer  = tokenizer, 
+    #                                              dataset    = tokenized_dataset
+    #                                              )
 
-    supervised_FT_model   = fine_tuner.apply_supervised_fine_tuning(output_dir      = Config.SUPERVISED_FINE_TUNED_MODEL_PATH,
-                                                                    batch_size      = 8,
-                                                                    learning_rate   = 2e-5,
-                                                                    num_epochs      = 3
-                                                                    )
+    # supervised_FT_model   = fine_tuner.apply_supervised_fine_tuning(output_dir      = Config.SUPERVISED_FINE_TUNED_MODEL_PATH,
+    #                                                                 batch_size      = 8,
+    #                                                                 learning_rate   = 2e-5,
+    #                                                                 num_epochs      = 3
+    #                                                                 )
     
-    # RLHF FINE-TUNING
+    # # RLHF FINE-TUNING
 
-    fine_tuner            = RLHFTrainer(model             = model, 
-                                        tokenizer         = tokenizer, 
-                                        prepared_dataset  = tokenized_dataset
-                                        )
+    # fine_tuner            = RLHFTrainer(model             = model, 
+    #                                     tokenizer         = tokenizer, 
+    #                                     prepared_dataset  = tokenized_dataset
+    #                                     )
 
-    rlhf_FT_model         = fine_tuner.apply_rlhf(output_dir       = Config.RLHF_FINE_TUNED_MODEL_PATH,
-                                                  reward_model_id  = None,
-                                                  batch_size       = 4,
-                                                  learning_rate    = 1e-5,
-                                                  num_epochs       = 1
-                                                  )
+    # rlhf_FT_model         = fine_tuner.apply_rlhf(output_dir       = Config.RLHF_FINE_TUNED_MODEL_PATH,
+    #                                               reward_model_id  = None,
+    #                                               batch_size       = 4,
+    #                                               learning_rate    = 1e-5,
+    #                                               num_epochs       = 1
+    #                                               )
     
-    # LLM - INFERENCE
+    # # LLM - INFERENCE
 
-    inference_engine      = InferenceEngine(model      = model, 
-                                            tokenizer  = tokenizer, 
-                                            device     = "cuda" if torch.cuda.is_available() else "cpu"
-                                            )
+    # inference_engine      = InferenceEngine(model      = model, 
+    #                                         tokenizer  = tokenizer, 
+    #                                         device     = "cuda" if torch.cuda.is_available() else "cpu"
+    #                                         )
 
-    sample_prompt         = prompt_template.format(instruction = dataset["test"][0]["text"])
+    # sample_prompt         = prompt_template.format(instruction = dataset["test"][0]["text"])
 
-    generated_outputs     = inference_engine.inference(prompt                = sample_prompt, 
-                                                       max_length            = 512, 
-                                                       temperature           = 0.7, 
-                                                       num_return_sequences  = 3
-                                                       )
+    # generated_outputs     = inference_engine.inference(prompt                = sample_prompt, 
+    #                                                    max_length            = 512, 
+    #                                                    temperature           = 0.7, 
+    #                                                    num_return_sequences  = 3
+    #                                                    )
 
-    for idx, output in enumerate(generated_outputs):
-        print(f"\nGenerated Output {idx + 1}:\n{output}")
+    # for idx, output in enumerate(generated_outputs):
+    #     print(f"\nGenerated Output {idx + 1}:\n{output}")
 
     # LLM - EVALUATION
 

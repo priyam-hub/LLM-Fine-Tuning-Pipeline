@@ -9,7 +9,7 @@ class Config:
     """
 
     HUGGING_FACE_DATASET               = "imdb"
-    HUGGING_FACE_MODEL_ID              = "google/bert-base-uncased"
+    HUGGING_FACE_MODEL_ID              = "google-bert/bert-base-uncased"
 
     REWARD_MODEL_PATH                  = "./model/reward_model"
     RLHF_FINE_TUNED_MODEL_PATH         = "./model/rlhf_fine_tuned_model"

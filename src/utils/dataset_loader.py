@@ -8,7 +8,7 @@ from regex import E
 
 from ..utils.logger import LoggerSetup
 
-datasetLoader_logger = LoggerSetup(logger_name = "dataset_loader.py", log_filename_prefix = "<dataset_loader>").get_logger()
+datasetLoader_logger = LoggerSetup(logger_name = "dataset_loader.py", log_filename_prefix = "dataset_loader").get_logger()
 
 
 class DatasetLoader:
@@ -70,7 +70,7 @@ class DatasetLoader:
 
             self.dataset = load_dataset(dataset)
             
-            datasetLoader_logger.info(f"Loaded dataset from Hugging Face: {dataset}")
+            datasetLoader_logger.info(f"Loaded dataset from Hugging Face")
         
         # LOADING DATASET FROM LOCAL FILE
         except Exception as e:
@@ -92,7 +92,7 @@ class DatasetLoader:
                 else:
                     raise ValueError(f"Unsupported file extension: {extension}")
                     
-                datasetLoader_logger.info(f"Loaded dataset from local file: {dataset}")
+                datasetLoader_logger.info("Loaded dataset from local file:")
         
             else:
                 datasetLoader_logger.error(f"Dataset {dataset} not found")
@@ -100,7 +100,7 @@ class DatasetLoader:
             
             datasetLoader_logger.error(f"Error loading dataset: {repr(e)}")
         
-        print(f"Dataset loaded with {len(self.dataset['train'])} training examples")
+        datasetLoader_logger.info(f"Dataset loaded with {len(self.dataset['train'])} training examples")
         
         return self.dataset
     
@@ -139,6 +139,7 @@ class DatasetLoader:
             
             else:
                 datasetLoader_logger.error(f"Unsupported file extension: {extension}")
+                
                 raise ValueError(f"Unsupported file extension: {extension}")
             
             datasetLoader_logger.info(f"Dataset saved successfully to {file_path}")

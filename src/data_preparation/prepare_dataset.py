@@ -98,6 +98,7 @@ class DatasetPreparer:
         
         if self.tokenizer is None or self.dataset is None:
             dataPreparation_logger.error("Tokenizer and dataset must be loaded before preparing the dataset")
+            
             raise ValueError("Model tokenizer and dataset must be loaded first")
         
         dataPreparation_logger.info("Preparing dataset for fine-tuning...")
@@ -142,7 +143,7 @@ class DatasetPreparer:
                         example["input_text"]  = f"Given the following movie review, determine if the sentiment is positive or negative:\n\nReview: {example['text']}\nSentiment:"
                         example["output_text"] = sentiment
 
-                    dataPreparation_logger.debug(f"Formatted example: {example}")
+                    dataPreparation_logger.debug("Example Formatted")
 
                 except KeyError as e:
                     dataPreparation_logger.error(f"KeyError in format_instruction: {repr(e)}")
@@ -186,8 +187,6 @@ class DatasetPreparer:
                 """
 
                 try:
-
-                    dataPreparation_logger.info("Tokenizing input and output text...")
         
                     model_inputs               = self.tokenizer(examples["input_text"], 
                                                                 truncation      = True, 
@@ -200,8 +199,6 @@ class DatasetPreparer:
                     if isinstance(self.model, AutoModelForCausalLM):
                         model_inputs["labels"] = model_inputs["input_ids"].copy()
 
-                        dataPreparation_logger.info(f"Tokenized input text for Decoder Only Models: {model_inputs['input_ids']}")
-            
                     # FOR ENCODER-ONLY MODELS
                     else:
                         
@@ -214,7 +211,6 @@ class DatasetPreparer:
                         
                         model_inputs["labels"] = labels["input_ids"]
 
-                        dataPreparation_logger.info(f"Tokenized input text for Encoder Only models: {model_inputs['input_ids']}")
                         
                     return model_inputs
                 

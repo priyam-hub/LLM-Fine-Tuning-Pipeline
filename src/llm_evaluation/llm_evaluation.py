@@ -85,7 +85,6 @@ class ModelEvaluator:
             
             with torch.no_grad():
                 outputs   = self.model.generate(**inputs, max_new_tokens = 100)
-                llm_evaluation_logger.info(f"Model inference completed for input: {input_text}")
             
             return self.tokenizer.batch_decode(outputs, skip_special_tokens = True)
         
