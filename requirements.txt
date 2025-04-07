@@ -9,3 +9,4 @@ datasets
 tabulate
 transformers
 sentencepiece
+rouge_score absl-py
