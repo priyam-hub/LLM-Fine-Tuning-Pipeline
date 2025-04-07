@@ -62,7 +62,7 @@ def main():
                                                                                                            num_epochs      = 3
                                                                                                            )
 
-    SUPERVISED FINE-TUNING
+    # SUPERVISED FINE-TUNING
 
     supervised_fine_tuner                           = SupervisedFineTuning(model      = model, 
                                                                            tokenizer  = tokenizer, 
@@ -75,7 +75,7 @@ def main():
                                                                                                          num_epochs      = 3
                                                                                                          )
     
-    RLHF FINE-TUNING
+    # RLHF FINE-TUNING
 
     rlhf_fine_tuner                                 = RLHFTrainer(model             = model, 
                                                                   tokenizer         = tokenizer, 
@@ -89,7 +89,7 @@ def main():
                                                                                  num_epochs       = 1
                                                                                  )
     
-    LLM - INFERENCE
+    # LLM - INFERENCE
 
     inference_engine                                = InferenceEngine(model      = model, 
                                                                       tokenizer  = tokenizer, 
