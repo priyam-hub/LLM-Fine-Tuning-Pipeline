@@ -104,8 +104,8 @@ def main():
     #                                                                              num_return_sequences  = 3
     #                                                                              )
 
-    for idx, output in enumerate(generated_outputs):
-        print(f"\nGenerated Output {idx + 1}:\n{output}")
+    # for idx, output in enumerate(generated_outputs):
+    #     print(f"\nGenerated Output {idx + 1}:\n{output}")
 
     # LLM - EVALUATION
 
