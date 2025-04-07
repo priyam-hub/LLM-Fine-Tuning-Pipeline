@@ -3,28 +3,54 @@
 # Exit on error
 set -e
 
+echo "Select environment type:"
+echo "1. Create Python Environment"
+echo "2. Create Conda Environment"
+read -p "Enter your choice (1 or 2): " choice
+
 ENV_NAME="llm_env"
 
-# Check if the virtual environment exists, if not, create it
-if [ ! -d "$ENV_NAME" ]; then
-    echo "Creating virtual environment '$ENV_NAME'..."
-    python -m venv "$ENV_NAME"
+if [ "$choice" == "1" ]; then
+    # Python Virtual Environment
+    echo "You selected Python virtual environment."
+
+    if [ ! -d "$ENV_NAME" ]; then
+        echo "Creating Python virtual environment '$ENV_NAME'..."
+        python -m venv "$ENV_NAME"
+    else
+        echo "Virtual environment '$ENV_NAME' already exists."
+    fi
+
+    echo "Activating Python virtual environment '$ENV_NAME'..."
+    source "$ENV_NAME/Scripts/activate"
+
+elif [ "$choice" == "2" ]; then
+    # Conda Environment
+    echo "You selected Conda environment."
+
+    if conda env list | grep -q "$ENV_NAME"; then
+        echo "Conda environment '$ENV_NAME' already exists."
+    else
+        echo "Creating Conda environment '$ENV_NAME'..."
+        conda create -y -n "$ENV_NAME" python=3.10
+    fi
+
+    echo "Activating Conda environment '$ENV_NAME'..."
+    source "$(conda info --base)/etc/profile.d/conda.sh"
+    conda activate "$ENV_NAME"
+
 else
-    echo "Virtual environment '$ENV_NAME' already exists."
+    echo "Invalid choice. Exiting."
+    exit 1
 fi
 
-# Activate the virtual environment (Windows)
-echo "Activating virtual environment '$ENV_NAME'..."
-source "$ENV_NAME/Scripts/activate"
-
-# Display the active environment
+# Show active Python environment
 echo "Currently in environment: $(which python)"
 
-# Upgrade pip
+# Upgrade pip and install dependencies
 echo "Upgrading pip..."
 python -m pip install --upgrade pip
 
-# Install dependencies from requirements.txt if the file exists
 if [ -f "requirements.txt" ]; then
     echo "Installing dependencies from requirements.txt..."
     pip install -r requirements.txt
@@ -33,4 +59,3 @@ else
 fi
 
 echo "Setup completed successfully!"
-
