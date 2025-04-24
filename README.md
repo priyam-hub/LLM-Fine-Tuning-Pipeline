@@ -65,6 +65,13 @@ Before using the LLM Fine-Tuning Pipeline, ensure that your environment is prope
 - **Storage**: 50GB+ free space for models and datasets
 - **Operating System**: Linux (recommended), macOS, or Windows with WSL2
 
+## 📰 Published Article
+
+Explore other Detailed Fine-Tuning Methods of Large Language Models with Mathematical Calculations:
+
+🔗 Read the article here:
+[Customizing AI for your Brand: A Deep Dive into LLM Fine-Tuning](https://medium.com/@priyampal/customizing-ai-for-your-brand-a-deep-dive-into-llm-fine-tuning-b9249bfbc160)
+
 ## 🚀 Installation
 
 ### Quick Start
