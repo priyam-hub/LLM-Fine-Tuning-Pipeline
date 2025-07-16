@@ -225,7 +225,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 <div align="center">
 
-**Pipeline Built by Priyam Pal**
+**Pipeline Built by Priyam Pal - AI and Data Science Engineer**
 
 [↑ Back to Top](#)
 
